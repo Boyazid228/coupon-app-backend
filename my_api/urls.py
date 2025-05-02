@@ -16,6 +16,7 @@ from .views import (
     VlogsView,
     LikesView,
     GetLikesView,
+    OrderView
 
 )
 from rest_framework_simplejwt.views import (
@@ -42,6 +43,7 @@ urlpatterns = [
     path('getVlogs/', VlogsView.as_view()),
     path('setLike/', LikesView.as_view()),
     path('getLike/', GetLikesView.as_view()),
+    path('order/', OrderView.as_view()),
 
 
 
