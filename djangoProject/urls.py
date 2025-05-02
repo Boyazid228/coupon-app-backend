@@ -23,7 +23,7 @@ from categories.views import MainPage, test
 urlpatterns = [
     path('api/', include('my_api.urls')),
     path('admin/', admin.site.urls),
-    path('test/', test.as_view()),
+
     path("", MainPage.as_view(), name='index')
 
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)\

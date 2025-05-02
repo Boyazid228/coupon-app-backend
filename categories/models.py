@@ -28,7 +28,7 @@ class Categories(models.Model):
         verbose_name_plural = 'Categories'
 
     def __str__(self):
-        return self.name
+        return self.name or self.name_en or self.name_ko or "Name not found"
 
 
 class Shops(models.Model):

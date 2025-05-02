@@ -14,7 +14,8 @@ from .serializers import (
     shopSerializer,
     shopsSerializer,
     VlogsSerializer,
-    LikesSerializer
+    LikesSerializer,
+    OrderSelializer
 )
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
@@ -22,7 +23,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-
+from orders.models import Order
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -51,9 +52,22 @@ def review_list(request, id, type):
 @csrf_exempt
 def menu_list(request):
     if request.method == 'GET':
+        lang = request.headers.get('Accept-Language', 'en')[:2]
         menu = Categories.objects.all()
-        serializer = categorySerializer(menu, many=True)
-        return JsonResponse(serializer.data, safe=False)
+
+        serialized_data = []
+        for item in menu:
+            name_field = f'name_{lang}'
+            name = getattr(item, name_field, item.name) or item.name
+
+            serialized_data.append({
+                'id': item.id,
+                'name': name,
+                'img': item.img.url if item.img else None,
+                'link': item.link,
+            })
+
+        return JsonResponse(serialized_data, safe=False)
 
 
 @csrf_exempt
@@ -183,7 +197,20 @@ class GetLikesView(APIView):
         return JsonResponse(serializer.data, safe=False)
 
 
+class OrderView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        orders = Order.objects.filter(user=request.user)
+        serializer = OrderSelializer(orders, many=True)
+        return Response(serializer.data)  # Use DRF Response
 
+    def post(self, request):
+        data = request.data.copy()
+        serializer = OrderSelializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'status': "ok"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

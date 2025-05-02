@@ -1,17 +1,16 @@
 from django.contrib import admin
-from .models import *
 from django.utils.html import format_html
-
+from modeltranslation.admin import TabbedTranslationAdmin
+from .models import *
+from .translation import *
 
 
 @admin.register(Categories)
-class CategoriesAdmin(admin.ModelAdmin):
-
+class CategoriesAdmin(TabbedTranslationAdmin):
     def image_tag(self, obj):
-        return format_html('<img src="{}" style="width: 100px; " />'.format(obj.img.url))
+        return format_html('<img src="{}" style="width: 100px;" />'.format(obj.img.url))
 
     image_tag.short_description = 'Image'
-
     list_display = ['name', 'image_tag']
 
 
