@@ -7,12 +7,12 @@ from categories.models import *
 from .serializers import (
     ReviewsSerializer,
     UserSelializer,
-    categorySerializer,
+    CategorySerializer,
     LikesGetSerializer,
-    couponSerializer,
+    CouponSerializer,
     marksSerializer,
-    shopSerializer,
-    shopsSerializer,
+    ShopSerializer,
+    ShopsSerializer,
     VlogsSerializer,
     LikesSerializer,
     OrderSelializer
@@ -23,15 +23,15 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from orders.models import Order
+from orders.models import Order, Products
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-
+from django.db.models import Avg
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
-@csrf_exempt
+@api_view(['GET', 'POST'])
 def review_list(request, id, type):
     if request.method == 'GET':
         if type == "shop":
@@ -43,55 +43,64 @@ def review_list(request, id, type):
 
     elif request.method == 'POST':
         data = JSONParser().parse(request)
+        if type == "coupon":
+            product = Products.objects.get(id=id)
+            data['shop'] = product.shop.id
+
         serializer = ReviewsSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            review = serializer.save()
+            shop_id = review.shop.id if review.shop else None
+            product_id = review.product.id if review.product else None
+            avg_grade_shop = Reviews.objects.filter(shop_id=shop_id).aggregate(Avg('grade'))['grade__avg']
+            shop = Shops.objects.get(id=shop_id)
+            shop.rating = round(avg_grade_shop, 1)
+            shop.save()
+
+            if type == "coupon":
+                product = Products.objects.get(id=product_id)
+                avg_grade = Reviews.objects.filter(product_id=product_id).aggregate(Avg('grade'))['grade__avg']
+                product.rating = round(avg_grade, 1)
+                product.save()
+
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
+
 
 @csrf_exempt
 def menu_list(request):
     if request.method == 'GET':
         lang = request.headers.get('Accept-Language', 'en')[:2]
         menu = Categories.objects.all()
-
-        serialized_data = []
-        for item in menu:
-            name_field = f'name_{lang}'
-            name = getattr(item, name_field, item.name) or item.name
-
-            serialized_data.append({
-                'id': item.id,
-                'name': name,
-                'img': item.img.url if item.img else None,
-                'link': item.link,
-            })
-
-        return JsonResponse(serialized_data, safe=False)
-
-
-@csrf_exempt
-def getShops(request, id):
-    if request.method == 'GET':
-
-        category = Categories.objects.get(pk=id)
-        shops = Shops.objects.filter(category__id=category.id)
-        serializer = shopsSerializer(shops, many=True)
+        serializer = CategorySerializer(menu, many=True, context={'lang': lang})
         return JsonResponse(serializer.data, safe=False)
 
 
 @csrf_exempt
-def getShop(request, id):
+def get_shops(request, id):
+    if request.method == 'GET':
+        category = Categories.objects.get(pk=id)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        shops = Shops.objects.filter(category__id=category.id)
+        serializer = ShopsSerializer(shops, many=True, context={'lang': lang})
+        return JsonResponse(serializer.data, safe=False)
+
+
+@csrf_exempt
+def get_shop(request, id):
     if request.method == 'GET':
         shop = Shops.objects.get(pk=id)
-        serializer = shopSerializer(shop)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        serializer = ShopSerializer(shop, context={'lang': lang})
         return JsonResponse(serializer.data, safe=False)
 
+
 @csrf_exempt
-def getCoupons(request, id):
+def get_coupons(request, id):
     if request.method == 'GET':
         coupons = Products.objects.filter(shop__id=id)
-        serializer = couponSerializer(coupons, many=True)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        serializer = CouponSerializer(coupons, many=True, context={'lang': lang})
         return JsonResponse(serializer.data, safe=False)
 
 
@@ -99,21 +108,24 @@ def getCoupons(request, id):
 def getMarks(request):
     if request.method == 'GET':
         marks = ShopsLocations.objects.all()
-        serializer = marksSerializer(marks, many=True)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        serializer = marksSerializer(marks, many=True, context={'lang': lang})
         return JsonResponse(serializer.data, safe=False)
 
 @csrf_exempt
 def getCoupon(request, id):
     if request.method == 'GET':
         coupon = Products.objects.get(pk=id)
-        serializer = couponSerializer(coupon)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        serializer = CouponSerializer(coupon, context={'lang': lang})
         return JsonResponse(serializer.data, safe=False)
 
 @csrf_exempt
 def getHots(request):
     if request.method == 'GET':
         coupons = Products.objects.order_by("rating")[:10:-1]
-        serializer = couponSerializer(coupons, many=True)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        serializer = CouponSerializer(coupons, many=True, context={'lang': lang})
         return JsonResponse(serializer.data, safe=False)
 
 
@@ -165,7 +177,8 @@ class LikesView(APIView):
     def get(self, request):
         # Filter likes by the authenticated user
         likes = Favorites.objects.filter(user=request.user)
-        serializer = LikesSerializer(likes, many=True)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        serializer = LikesSerializer(likes, many=True,  context={'lang': lang})
         return Response(serializer.data)  # Use DRF Response
 
     def post(self, request):
@@ -193,7 +206,9 @@ class GetLikesView(APIView):
     def post(self, request):
         # Filter likes by the authenticated user
         likes = Favorites.objects.filter(user=request.user)
-        serializer = LikesGetSerializer(likes, many=True)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        print(lang)
+        serializer = LikesGetSerializer(likes, many=True, context={'lang': lang})
         return JsonResponse(serializer.data, safe=False)
 
 
@@ -212,5 +227,14 @@ class OrderView(APIView):
             serializer.save()
             return Response({'status': "ok"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MyReviewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reviews = Reviews.objects.filter(user=request.user)
+        serializer = ReviewsSerializer(reviews, many=True)
+        return Response(serializer.data)  # Use DRF Response
 
 

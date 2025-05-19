@@ -6,78 +6,100 @@ from orders.models import Order
 User = get_user_model()
 
 
-class categorySerializer(serializers.Serializer):
+class CategorySerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
     id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField()
-    img = serializers.ImageField()
-    link = serializers.CharField()
+
+    class Meta:
+        model = Categories
+        fields = ['id', 'name', 'img', 'link']
+
+    def get_name(self, obj):
+        lang = self.context.get('lang', 'en')
+        name_field = f'name_{lang}'
+        return getattr(obj, name_field, obj.name) or obj.name
 
 
-class shopsSerializer(serializers.Serializer):
+class BaseShopSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField()
-    logo = serializers.ImageField()
-    info = serializers.CharField()
+    name = serializers.SerializerMethodField()
+    info = serializers.SerializerMethodField()
     category = serializers.PrimaryKeyRelatedField(queryset=Categories.objects.all())
-    rating = serializers.IntegerField()
-    description = serializers.CharField()
-    short_description = serializers.CharField()
-    background = serializers.ImageField()
-    preview = serializers.ImageField()
+    description = serializers.SerializerMethodField()
+    short_description = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Shops
+        fields = ['id', 'name', 'logo', 'info', 'category', 'rating',
+                  'description', 'short_description', 'background', 'preview']
+
+    def get_localized_field(self, obj, field_base_name):
+        lang = self.context.get('lang', 'en')
+        localized_field = f'{field_base_name}_{lang}'
+        default = getattr(obj, field_base_name, '')
+        return getattr(obj, localized_field, default) or default
+
+    def get_name(self, obj):
+        return self.get_localized_field(obj, 'name')
+
+    def get_info(self, obj):
+        return self.get_localized_field(obj, 'info')
+
+    def get_description(self, obj):
+        return self.get_localized_field(obj, 'description')
+
+    def get_short_description(self, obj):
+        return self.get_localized_field(obj, 'short_description')
 
 
-class shopSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField()
-    logo = serializers.ImageField()
-    info = serializers.CharField()
-    category = serializers.PrimaryKeyRelatedField(queryset=Categories.objects.all())
-    rating = serializers.IntegerField()
-    description = serializers.CharField()
-    short_description = serializers.CharField()
-    background = serializers.ImageField()
-    preview = serializers.ImageField()
+class ShopsSerializer(BaseShopSerializer):
+    pass
+
+
+class ShopSerializer(BaseShopSerializer):
     review_count = serializers.SerializerMethodField()
 
+    class Meta(BaseShopSerializer.Meta):
+        fields = BaseShopSerializer.Meta.fields + ['review_count']
+
     def get_review_count(self, obj):
-        count = Reviews.objects.filter(shop_id=obj.id).count()
-        return count
+        return Reviews.objects.filter(shop_id=obj.id).count()
 
 
-
-class couponSerializer(serializers.Serializer):
+class CouponSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField()
-    rating = serializers.IntegerField()
-    price = serializers.IntegerField()
-    count = serializers.IntegerField()
-    title = serializers.CharField()
-    description = serializers.CharField()
-    short_description = serializers.CharField()
-    background = serializers.ImageField()
-    preview = serializers.ImageField()
+    name = serializers.SerializerMethodField()
+    info = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    short_description = serializers.SerializerMethodField()
     shop = serializers.PrimaryKeyRelatedField(queryset=Shops.objects.all())
     review_count = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Products
+        fields = ['id', 'name', 'price', 'count', 'shop', 'rating', 'description', 'short_description', 'background',
+                  'preview', 'review_count', 'title', 'info', 'time_start', 'time_finish']
+
+    def get_localized_field(self, obj, field_base_name):
+        lang = self.context.get('lang', 'en')
+        localized_field = f'{field_base_name}_{lang}'
+        default = getattr(obj, field_base_name, '')
+        return getattr(obj, localized_field, default) or default
+
+    def get_name(self, obj):
+        return self.get_localized_field(obj, 'name')
+
+    def get_info(self, obj):
+        return self.get_localized_field(obj, 'info')
+
+    def get_description(self, obj):
+        return self.get_localized_field(obj, 'description')
+
+    def get_short_description(self, obj):
+        return self.get_localized_field(obj, 'short_description')
 
     def get_review_count(self, obj):
-        count = Reviews.objects.filter(product_id=obj.id).count()
-        return count
-
-
-
-# class couSerializer(serializers.Serializer):
-#     id = serializers.IntegerField(read_only=True)
-#     name = serializers.CharField()
-#     rating = serializers.IntegerField()
-#     price = serializers.IntegerField()
-#     count = serializers.IntegerField()
-#     title = serializers.CharField()
-#     description = serializers.CharField()
-#     short_description = serializers.CharField()
-#     background = serializers.ImageField()
-#     preview = serializers.ImageField()
-#     shop = serializers.PrimaryKeyRelatedField(queryset=Shops.objects.all())
+        return Reviews.objects.filter(product_id=obj.id).count()
 
 
 class UserSelializer(serializers.ModelSerializer):
@@ -94,19 +116,19 @@ class USelializer(serializers.ModelSerializer):
 
 class marksSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
-    shop = shopsSerializer()
+    shop = ShopsSerializer()
     latitude = serializers.FloatField()
     longitude = serializers.FloatField()
 
 
-class ReviewsSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    product = couponSerializer()
-    user = USelializer()
-    shop = shopsSerializer()
-    grade = serializers.IntegerField()
-    date = serializers.DateTimeField(required=False)
-    description = serializers.CharField(style={'base_template': 'textarea.html'})
+class ReviewsSerializer(serializers.ModelSerializer):
+    shop = ShopSerializer()
+    product = CouponSerializer()
+
+    class Meta:
+        model = Reviews
+        fields = '__all__'
+        read_only_fields = ['id', 'date']
 
 
 class VlogsSerializer(serializers.Serializer):
@@ -129,7 +151,7 @@ class LikesSerializer(serializers.ModelSerializer):
 
 class LikesGetSerializer(serializers.ModelSerializer):
     user = USelializer()
-    shop = shopSerializer()
+    shop = ShopSerializer()
 
     class Meta:
         model = Favorites
@@ -138,7 +160,7 @@ class LikesGetSerializer(serializers.ModelSerializer):
 
 class OrderSelializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())  # Optional customization
-    product = serializers.PrimaryKeyRelatedField(queryset=Products.objects.all())  # Assuming a Shop model
+    product = CouponSerializer()  # Assuming a Shop model
 
     class Meta(object):
         model = Order

@@ -22,6 +22,6 @@ class Order(models.Model):
         verbose_name_plural = "Orders"
 
     def __str__(self):
-        user_name = self.user.name if self.user else "Unknown User"
+        user_name = self.user.email if self.user else "Unknown User"
         product_name = self.product.name if self.product else "Unknown Product"
         return f"{user_name} | {product_name}"

@@ -5,9 +5,9 @@ import categories.views
 from .views import (
     review_list,
     menu_list,
-    getShops,
-    getShop,
-    getCoupons,
+    get_shops,
+    get_shop,
+    get_coupons,
     getCoupon,
     getHots,
     signup,
@@ -16,7 +16,8 @@ from .views import (
     VlogsView,
     LikesView,
     GetLikesView,
-    OrderView
+    OrderView,
+    MyReviewView
 
 )
 from rest_framework_simplejwt.views import (
@@ -28,9 +29,9 @@ from rest_framework_simplejwt.views import (
 urlpatterns = [
     path('reviews/<int:id>/<str:type>/', review_list),
     path('getMenu/', menu_list),
-    path('getShops/<int:id>/', getShops),
-    path('getShop/<int:id>/', getShop),
-    path('getCoupons/<int:id>/', getCoupons),
+    path('getShops/<int:id>/', get_shops),
+    path('getShop/<int:id>/', get_shop),
+    path('getCoupons/<int:id>/', get_coupons),
     path('getCoupon/<int:id>/', getCoupon),
     path('hot/', getHots),
     path('seller/', getHots),
@@ -44,6 +45,9 @@ urlpatterns = [
     path('setLike/', LikesView.as_view()),
     path('getLike/', GetLikesView.as_view()),
     path('order/', OrderView.as_view()),
+    path('getmyreviews/', MyReviewView.as_view()),
+
+
 
 
 

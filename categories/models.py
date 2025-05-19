@@ -18,6 +18,7 @@ def vlogs_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return "vlogs_{0}/{1}".format(instance.user.username, filename)
 
+
 class Categories(models.Model):
     name = models.CharField(max_length=255, null=True)
     img = models.ImageField(upload_to=categories_directory_path, max_length=200)
@@ -28,7 +29,7 @@ class Categories(models.Model):
         verbose_name_plural = 'Categories'
 
     def __str__(self):
-        return self.name or self.name_en or self.name_ko or "Name not found"
+        return self.name
 
 
 class Shops(models.Model):
@@ -76,7 +77,6 @@ class Products(models.Model):
     shop = models.ForeignKey('Shops', on_delete=models.CASCADE, default="")
     time_start = models.DateTimeField(null=True, editable=True)
     time_finish = models.DateTimeField(null=True, editable=True)
-
 
     class Meta:
         verbose_name = 'Coupon'
