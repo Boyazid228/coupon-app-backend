@@ -20,7 +20,7 @@ class ShopsLocationsInline(admin.TabularInline):
 
 
 @admin.register(Shops)
-class ShopsAdmin(admin.ModelAdmin):
+class ShopsAdmin(TabbedTranslationAdmin):
     inlines = [ShopsLocationsInline]
     list_display = ['name', 'image_tag', 'rating']
     list_filter = ('name', 'rating')
@@ -51,7 +51,7 @@ class ShopsLocationsAdmin(admin.ModelAdmin):
 
 
 @admin.register(Products)
-class ProductsAdmin(admin.ModelAdmin):
+class ProductsAdmin(TabbedTranslationAdmin):
     list_display = ('name', 'price', 'count', 'shop_name', 'rating')
     list_filter = ('name', 'price', 'count', 'shop__name', 'rating', 'time_start', 'time_finish')
     search_fields = ('name', 'price', 'shop__name')
@@ -67,7 +67,7 @@ class ReviewsAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'product__name', 'shop__name')
 
     def shop_name(self, instance):
-        return instance.shop.name
+        return instance.shop.name if instance.shop else "-------"
 
     def user_name(self, instance):
         return instance.user.username
