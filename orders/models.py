@@ -11,11 +11,12 @@ class Order(models.Model):
     ]
 
     product = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, )
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="orders_as_user")
     payment = models.CharField(max_length=20)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="accepted")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="orders_as_owner")
 
     class Meta:
         verbose_name = "Order"

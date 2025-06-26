@@ -6,6 +6,24 @@ from orders.models import Order
 User = get_user_model()
 
 
+class UserSelializer(serializers.ModelSerializer):
+    class Meta(object):
+        model = User
+        fields = ['id', 'username', 'password', 'email']
+
+
+class USelializer(serializers.ModelSerializer):
+    groups = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        slug_field='name'
+    )
+
+    class Meta(object):
+        model = User
+        fields = ['id', 'username',  'email',  'groups']
+
+
 class CategorySerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     id = serializers.IntegerField(read_only=True)
@@ -24,14 +42,15 @@ class BaseShopSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.SerializerMethodField()
     info = serializers.SerializerMethodField()
-    category = serializers.PrimaryKeyRelatedField(queryset=Categories.objects.all())
+    category = CategorySerializer()
     description = serializers.SerializerMethodField()
     short_description = serializers.SerializerMethodField()
+    user = USelializer()
 
     class Meta:
         model = Shops
         fields = ['id', 'name', 'logo', 'info', 'category', 'rating',
-                  'description', 'short_description', 'background', 'preview']
+                  'description', 'short_description', 'background', 'preview', 'user']
 
     def get_localized_field(self, obj, field_base_name):
         lang = self.context.get('lang', 'en')
@@ -72,13 +91,14 @@ class CouponSerializer(serializers.ModelSerializer):
     info = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
     short_description = serializers.SerializerMethodField()
-    shop = serializers.PrimaryKeyRelatedField(queryset=Shops.objects.all())
+    shop = ShopSerializer()
+    user = USelializer()
     review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Products
         fields = ['id', 'name', 'price', 'count', 'shop', 'rating', 'description', 'short_description', 'background',
-                  'preview', 'review_count', 'title', 'info', 'time_start', 'time_finish']
+                  'preview', 'review_count', 'title', 'info', 'time_start', 'time_finish', 'user']
 
     def get_localized_field(self, obj, field_base_name):
         lang = self.context.get('lang', 'en')
@@ -102,33 +122,29 @@ class CouponSerializer(serializers.ModelSerializer):
         return Reviews.objects.filter(product_id=obj.id).count()
 
 
-class UserSelializer(serializers.ModelSerializer):
-    class Meta(object):
-        model = User
-        fields = ['id', 'username', 'password', 'email']
-
-
-class USelializer(serializers.ModelSerializer):
-    class Meta(object):
-        model = User
-        fields = ['id', 'username',  'email']
-
 
 class marksSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     shop = ShopsSerializer()
     latitude = serializers.FloatField()
     longitude = serializers.FloatField()
+    user = USelializer()
+    address = serializers.CharField()
 
 
 class ReviewsSerializer(serializers.ModelSerializer):
-    shop = ShopSerializer()
-    product = CouponSerializer()
+    user = USelializer(read_only=True)  # read_only
+    owner = USelializer(read_only=True)
 
+    user_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), source='user', write_only=True)
+    owner_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), source='owner', write_only=True)
+    shop_id = serializers.PrimaryKeyRelatedField(queryset=Shops.objects.all(), source='shop', write_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(queryset=Products.objects.all(), source='product', write_only=True,
+                                                    required=False, allow_null=True)
     class Meta:
         model = Reviews
         fields = '__all__'
-        read_only_fields = ['id', 'date']
+        read_only_fields = ['id', 'date', 'user', 'owner']
 
 
 class VlogsSerializer(serializers.Serializer):
@@ -158,10 +174,3 @@ class LikesGetSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'shop']
 
 
-class OrderSelializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())  # Optional customization
-    product = CouponSerializer()  # Assuming a Shop model
-
-    class Meta(object):
-        model = Order
-        fields = ['id', 'user', 'product', 'status', 'payment']
