@@ -34,7 +34,7 @@ class ShopsAdmin(TabbedTranslationAdmin):
 
 @admin.register(ShopsLocations)
 class ShopsLocationsAdmin(admin.ModelAdmin):
-    list_display = ('shop_name', 'image_tag', 'latitude', 'longitude')
+    list_display = ('shop_name', 'image_tag', 'latitude', 'longitude', 'address')
     list_filter = ('shop__name',)
     search_fields = ('shop__name',)
 
@@ -52,12 +52,14 @@ class ShopsLocationsAdmin(admin.ModelAdmin):
 
 @admin.register(Products)
 class ProductsAdmin(TabbedTranslationAdmin):
-    list_display = ('name', 'price', 'count', 'shop_name', 'rating')
+    list_display = ('name', 'price', 'count', 'shop_name', 'user_name','rating')
     list_filter = ('name', 'price', 'count', 'shop__name', 'rating', 'time_start', 'time_finish')
     search_fields = ('name', 'price', 'shop__name')
 
     def shop_name(self, instance):
         return instance.shop.name
+    def user_name(self, instance):
+        return instance.user.username
 
 
 @admin.register(Reviews)

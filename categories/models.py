@@ -42,6 +42,7 @@ class Shops(models.Model):
     info = RichTextField()
     background = models.ImageField(upload_to=shops_directory_path, max_length=200, default="")
     preview = models.ImageField(upload_to=shops_directory_path, max_length=200, default="")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     class Meta:
         verbose_name = 'Shop'
@@ -55,6 +56,8 @@ class ShopsLocations(models.Model):
     shop = models.ForeignKey('Shops',  on_delete=models.CASCADE)
     latitude = models.FloatField()
     longitude = models.FloatField()
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    address = models.CharField(max_length=255, default="")
 
     class Meta:
         verbose_name = 'Shop Location'
@@ -75,6 +78,7 @@ class Products(models.Model):
     background = models.ImageField(upload_to=shops_directory_path, max_length=200, default="")
     preview = models.ImageField(upload_to=shops_directory_path, max_length=200, default="")
     shop = models.ForeignKey('Shops', on_delete=models.CASCADE, default="")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     time_start = models.DateTimeField(null=True, editable=True)
     time_finish = models.DateTimeField(null=True, editable=True)
 
@@ -87,12 +91,13 @@ class Products(models.Model):
 
 
 class Reviews(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reviews_as_user")
     shop = models.ForeignKey('Shops', on_delete=models.CASCADE, blank=True, null=True)
     product = models.ForeignKey('Products', on_delete=models.CASCADE, blank=True, null=True)
     grade = models.IntegerField(default=0)
     date = models.DateTimeField(auto_now=True)
     description = RichTextField()
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reviews_as_owner")
 
     class Meta:
         verbose_name = 'Review'

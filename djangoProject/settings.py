@@ -49,14 +49,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'categories.apps.CategoriesConfig',
+    'modeltranslation',
     'ckeditor',
     'rest_framework',
-    'my_api',
     'rest_framework_simplejwt',
     'rest_framework.authtoken',
     'corsheaders',
     'orders',
-    'modeltranslation',
+    'my_api',
+    'client'
 
 ]
 
@@ -70,6 +71,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.locale.LocaleMiddleware',
+    'djangoProject.middleware.RestrictAdminMiddleware'
 
 
 ]

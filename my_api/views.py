@@ -1,9 +1,9 @@
-# my_api/views.py
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.parsers import JSONParser
 from categories.models import *
+from client.serializers import OrderSelializer
 from .serializers import (
     ReviewsSerializer,
     UserSelializer,
@@ -15,8 +15,8 @@ from .serializers import (
     ShopsSerializer,
     VlogsSerializer,
     LikesSerializer,
-    OrderSelializer
 )
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -29,9 +29,14 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Avg
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.models import Group
+
+import requests
+import json
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticatedOrReadOnly])
 def review_list(request, id, type):
     if request.method == 'GET':
         if type == "shop":
@@ -42,28 +47,77 @@ def review_list(request, id, type):
         return JsonResponse(serializer.data, safe=False)
 
     elif request.method == 'POST':
+
         data = JSONParser().parse(request)
+
+        if not request.user or request.user.is_anonymous:
+            return JsonResponse({"error": "Authentication required."}, status=401)
+
+        data['shop_id'] = data.get('shop')
+
         if type == "coupon":
-            product = Products.objects.get(id=id)
-            data['shop'] = product.shop.id
 
-        serializer = ReviewsSerializer(data=data)
+            try:
+
+                product = Products.objects.get(id=id)
+
+            except Products.DoesNotExist:
+
+                return JsonResponse({"error": "Product not found."}, status=404)
+
+            data['shop_id'] = product.shop.id
+
+            data['product_id'] = id
+
+        else:
+
+            data['shop_id'] = data.get('shop')
+
+            data['product_id'] = None
+
+        data['user_id'] = int(request.user.id)
+        print(data)
+        prod = Shops.objects.get(id=data.get('shop_id'))
+        data['owner_id'] = prod.user.id
+        data.pop('owner', None)
+        data.pop('user', None)
+        data.pop('shop', None)
+        data.pop('product', None)
+        print(data)
+        serializer = ReviewsSerializer(data=data, context={'request': request})
+
         if serializer.is_valid():
-            review = serializer.save()
-            shop_id = review.shop.id if review.shop else None
-            product_id = review.product.id if review.product else None
-            avg_grade_shop = Reviews.objects.filter(shop_id=shop_id).aggregate(Avg('grade'))['grade__avg']
-            shop = Shops.objects.get(id=shop_id)
-            shop.rating = round(avg_grade_shop, 1)
-            shop.save()
 
-            if type == "coupon":
-                product = Products.objects.get(id=product_id)
+            review = serializer.save()
+
+            shop_id = review.shop.id if review.shop else None
+
+            if shop_id:
+                avg_grade_shop = Reviews.objects.filter(shop_id=shop_id).aggregate(Avg('grade'))['grade__avg']
+
+                shop = Shops.objects.get(id=shop_id)
+
+                shop.rating = round(avg_grade_shop or 0, 1)
+
+                shop.save()
+
+
+
+            if type == "coupon" and review.product:
+                product_id = review.product.id
+
                 avg_grade = Reviews.objects.filter(product_id=product_id).aggregate(Avg('grade'))['grade__avg']
-                product.rating = round(avg_grade, 1)
+
+                product = Products.objects.get(id=product_id)
+
+                product.rating = round(avg_grade or 0, 1)
+
                 product.save()
 
+
+
             return JsonResponse(serializer.data, status=201)
+        print("Serializer errors:", serializer.errors)
         return JsonResponse(serializer.errors, status=400)
 
 
@@ -138,6 +192,12 @@ def signup(request):
         user = User.objects.get(username=request.data['username'])
         user.set_password(request.data['password'])
         user.save()
+        try:
+            group = Group.objects.get(name='user')
+        except Group.DoesNotExist:
+            return Response({'error': 'Group not found'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        user.groups.add(group)
         refresh = RefreshToken.for_user(user)
         return Response({
             'refresh': str(refresh),
@@ -153,12 +213,14 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        print(request)
         user = request.user
+        groups = user.groups.all()
+        group_names = [group.name for group in groups]
         user_data = {
             'username': user.username,
             'email': user.email,
-            'id': user.id
+            'id': user.id,
+            'groups': group_names
         }
         return JsonResponse(user_data, safe=False)
 
@@ -207,7 +269,6 @@ class GetLikesView(APIView):
         # Filter likes by the authenticated user
         likes = Favorites.objects.filter(user=request.user)
         lang = request.headers.get('Accept-Language', 'en')[:2]
-        print(lang)
         serializer = LikesGetSerializer(likes, many=True, context={'lang': lang})
         return JsonResponse(serializer.data, safe=False)
 
@@ -217,15 +278,26 @@ class OrderView(APIView):
 
     def get(self, request):
         orders = Order.objects.filter(user=request.user)
-        serializer = OrderSelializer(orders, many=True)
+        lang = request.headers.get('Accept-Language', 'en')[:2]
+        serializer = OrderSelializer(orders, many=True, context={'lang': lang})
         return Response(serializer.data)  # Use DRF Response
 
     def post(self, request):
         data = request.data.copy()
+        prod = Products.objects.get(id=data['product'])
+        data['product_id'] = int(data['product'])
+        data['product'] = prod
+        data['user_id'] = request.user.id
+        data['user'] = request.user
+        data['owner'] = User.objects.get(id=prod.user.id)
+        data['owner_id'] = prod.user.id
+        print(data)
         serializer = OrderSelializer(data=data)
+
         if serializer.is_valid():
-            serializer.save()
+            order = serializer.save()
             return Response({'status': "ok"}, status=status.HTTP_201_CREATED)
+        print("Serializer errors:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

@@ -17,8 +17,20 @@ from .views import (
     LikesView,
     GetLikesView,
     OrderView,
-    MyReviewView
+    MyReviewView,
 
+
+)
+from client.views import (
+    ClientItemView,
+    ClientProductsView,
+    ClientShops,
+    ClientReviews,
+    ClientDeleteItem,
+    ClientLocations,
+    ClientOrders,
+    ClientAiAnalyzer,
+    ClientShopsData
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -47,6 +59,18 @@ urlpatterns = [
     path('order/', OrderView.as_view()),
     path('getmyreviews/', MyReviewView.as_view()),
 
+    #dashboard
+    path('getproducts/', ClientProductsView.as_view()),
+    path('getitem/<str:type>/<int:id>/', ClientItemView.as_view()),
+    path('get-shops/', ClientShops.as_view()),
+    path('get-reviews/', ClientReviews.as_view()),
+    path('get-locations/', ClientLocations.as_view()),
+    path('get-orders/', ClientOrders.as_view()),
+    path('delete-item/', ClientDeleteItem.as_view()),
+    path('shop-data/', ClientShopsData.as_view()),
+
+    #ai- Client
+    path('ai-analyze/', ClientAiAnalyzer.as_view())
 
 
 
